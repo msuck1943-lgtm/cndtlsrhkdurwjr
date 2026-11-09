@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>*{box-sizing:border-box}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>충신과 역적 숫자 뽑기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&family=Hahmlet:wght@600;800&display=swap">
+<style>
+/* Layout: one centered stage with two tabs (숫자 뽑기 / 역할 배정); each tab = settings strip, big reveal area, primary action, pass-the-device action */
+:root{
+  --paper:#EDF0EA; --ink:#1D2420; --muted:#5E6A63; --line:#C9D1C8;
+  --seal:#B3302A; --sealInk:#FFF6EE; --jade:#2E6A58; --gold:#B8913A; --card:#F8FAF6;
+  --display:"Hahmlet","Nanum Myeongjo",serif;
+  --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --num:"Black Han Sans","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#141A17; --ink:#E7ECE6; --muted:#9AA79F; --line:#2E3934;
+  --seal:#C9443B; --sealInk:#FFF3EA; --jade:#5FA78F; --gold:#D4AE58; --card:#1C2420; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#141A17; --ink:#E7ECE6; --muted:#9AA79F; --line:#2E3934;
+  --seal:#C9443B; --sealInk:#FFF3EA; --jade:#5FA78F; --gold:#D4AE58; --card:#1C2420; color-scheme:dark}
+
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:760px;margin:0 auto;padding-block:28px 40px;display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:6px;text-align:center}
+.eyebrow{font-size:13px;letter-spacing:.18em;color:var(--jade)}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,6vw,46px);margin:0;text-wrap:balance}
+h1 .red{color:var(--seal)}
+
+.tabs{display:flex;justify-content:center;gap:6px;border-bottom:1px solid var(--line)}
+.tab{background:none;border:0;border-bottom:3px solid transparent;border-radius:0;padding:10px 18px;
+  font:inherit;font-size:17px;color:var(--muted);cursor:pointer;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--seal);font-weight:700}
+.panel{display:flex;flex-direction:column;gap:22px}
+
+.settings{display:flex;flex-wrap:wrap;gap:12px 20px;justify-content:center;align-items:center;
+  padding:14px 16px;border:1px solid var(--line);border-radius:10px}
+.settings label{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted)}
+.settings input[type=number]{width:64px;font:inherit;color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:6px;padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums}
+.settings input[type=checkbox]{width:18px;height:18px;accent-color:var(--jade)}
+.err{color:var(--seal);font-size:14px;text-align:center;min-height:1.2em;margin:-12px 0 0}
+
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(10px,2.5vw,18px)}
+.tile{aspect-ratio:3/4;max-width:100%;border-radius:12px;background:var(--card);
+  border:2px solid var(--line);display:grid;place-items:center;position:relative;overflow:hidden}
+.tile::before{content:"";position:absolute;inset:8px;border:1px dashed var(--line);border-radius:7px}
+.tile .n{font-family:var(--num);font-size:clamp(44px,13vw,96px);line-height:1;color:var(--ink);position:relative}
+.tile .q{font-family:var(--display);font-size:clamp(28px,8vw,52px);color:var(--line);position:relative}
+.tile.on{background:var(--seal);border-color:var(--seal)}
+.tile.on::before{border-color:color-mix(in srgb,var(--sealInk) 45%,transparent)}
+.tile.on .n{color:var(--sealInk)}
+.flip{animation:flip .45s ease both}
+@keyframes flip{0%{transform:rotateY(90deg) scale(.9)}100%{transform:none}}
+
+.actions{display:flex;flex-direction:column;align-items:center;gap:12px}
+button{font:inherit;cursor:pointer;border-radius:999px;border:0}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.primary{font-family:var(--display);font-weight:800;font-size:24px;padding:16px 48px;
+  background:var(--jade);color:var(--paper);box-shadow:0 4px 0 color-mix(in srgb,var(--jade) 60%,#000)}
+.primary:active{transform:translateY(3px);box-shadow:0 1px 0 color-mix(in srgb,var(--jade) 60%,#000)}
+.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);padding:10px 24px;font-size:16px}
+.ghost[disabled]{opacity:.4;cursor:default}
+.small{font-size:14px;padding:8px 18px}
+.danger{color:var(--seal);border-color:var(--seal)}
+.count{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:center}
+
+/* role reveal */
+.stage{border:2px solid var(--line);border-radius:14px;background:var(--card);min-height:300px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px 16px;text-align:center}
+.who{font-family:var(--display);font-weight:800;font-size:clamp(26px,5.5vw,38px)}
+.who .no{font-family:var(--num);font-weight:400;color:var(--jade);font-size:1.25em;margin-right:4px}
+.hint{color:var(--muted);margin:0}
+.role{font-family:var(--num);font-size:clamp(64px,18vw,128px);line-height:1}
+.role.loyal{color:var(--jade)}
+.role.traitor{color:var(--seal)}
+.stage.traitor{border-color:var(--seal)}
+.stage.loyal{border-color:var(--jade)}
+.mini{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.mini span{font-family:var(--num);font-size:28px;min-width:52px;padding:6px 10px;border-radius:8px;
+  background:var(--seal);color:var(--sealInk)}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden;width:100%}
+.progress i{display:block;height:100%;background:var(--jade);width:0;transition:width .3s}
+
+.result{border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.result h3{font-family:var(--display);margin:0 0 10px;font-size:18px}
+.result ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.result li{display:flex;justify-content:space-between;gap:8px;padding:6px 10px;border-radius:6px;background:var(--card);font-variant-numeric:tabular-nums}
+.result li.t{outline:1.5px solid var(--seal)}
+.result li .r{font-weight:700}
+.result li.t .r{color:var(--seal)}
+.result li .ns{color:var(--muted);font-size:13px}
+
+/* absent picker */
+.absent{display:flex;flex-direction:column;gap:10px}
+.absent-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:15px;color:var(--muted)}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
+.chip{border-radius:8px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);
+  font-family:var(--num);font-size:19px;padding:8px 0;font-variant-numeric:tabular-nums;position:relative}
+.chip[aria-pressed="true"]{background:transparent;color:var(--muted);border-style:dashed;text-decoration:line-through}
+.chip[aria-pressed="true"]::after{content:"결석";position:absolute;bottom:1px;left:0;right:0;font-family:var(--body);font-size:9px;text-decoration:none}
+.chip:disabled{cursor:default;opacity:.6}
+
+/* rails */
+.railboard{display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:14px;
+  background:color-mix(in srgb,var(--card) 70%,var(--paper));border:1px solid var(--line)}
+.roundbar{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.roundno{font-family:var(--display);font-weight:800;font-size:22px}
+.rails{display:grid;grid-template-columns:1fr;gap:16px}
+.rail{border:2px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.rail.full{border-color:var(--jade)}
+.rail-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.rail-name{font-family:var(--num);font-size:26px}
+.rail-name.a{color:var(--seal)} .rail-name.b{color:var(--jade)}
+.rail-meta{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rail-meta b{color:var(--ink);font-size:17px}
+.track{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.slot{flex:0 0 auto;width:50px;height:58px;border-radius:8px;border:1.5px dashed var(--line);
+  display:grid;place-items:center;font-family:var(--num);font-size:24px;color:var(--ink);position:relative;font-variant-numeric:tabular-nums}
+.slot small{position:absolute;top:2px;left:5px;font-family:var(--body);font-size:10px;color:var(--muted)}
+.slot.filled{border-style:solid;background:var(--card)}
+.rail.ra .slot.filled{border-color:var(--seal)}
+.rail.rb .slot.filled{border-color:var(--jade)}
+.slot.new{animation:flip .4s ease both}
+.entry{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;
+  padding:14px 16px;border:1px solid var(--line);border-radius:10px}
+.entry-l{font-size:15px;color:var(--muted)}
+.entry input{width:110px;font-family:var(--num);font-size:28px;text-align:center;color:var(--ink);
+  background:var(--card);border:1.5px solid var(--line);border-radius:8px;padding:6px 8px}
+.entry-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.entry .hint{flex-basis:100%;text-align:center;font-size:13px}
+.small-primary{font-size:18px;padding:10px 24px}
+.actions.row{flex-direction:row;flex-wrap:wrap;justify-content:center}
+.ghost:disabled{opacity:.4;cursor:default}
+.done{border:2px solid var(--gold);border-radius:12px;padding:14px 16px;text-align:center}
+.done b{font-family:var(--display);font-size:20px}
+.hist{border-top:1px solid var(--line);padding-top:12px}
+.hist h3{font-family:var(--display);font-size:17px;margin:0 0 8px}
+.hist-row{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px;font-variant-numeric:tabular-nums}
+.hist-row .hr{font-weight:700}
+.hist-row .hl{color:var(--muted);min-width:0;overflow-wrap:anywhere}
+
+.howto{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:15px;line-height:1.7}
+.howto b{color:var(--ink)}
+.howto ol{margin:6px 0 0;padding-left:22px}
+
+@media (max-width:420px){.board{gap:8px}.tile{border-radius:9px}.primary{padding:14px 36px;font-size:21px}}
+@media (prefers-reduced-motion:reduce){.flip{animation:none}.progress i{transition:none}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">우리 반 게임</div>
+    <h1>충신과 <span class="red">역적</span></h1>
+  </header>
+
+  <section class="railboard" id="railBoard" aria-label="레일 현황">
+    <div class="roundbar">
+      <span class="roundno" id="roundNo">1라운드</span>
+      <span class="count" id="railCount"></span>
+    </div>
+    <div class="rails" id="rails"></div>
+  </section>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-roles" aria-selected="true" aria-controls="p-roles">역할 배정</button>
+    <button class="tab" role="tab" id="tab-nums" aria-selected="false" aria-controls="p-nums">숫자 뽑기</button>
+    <button class="tab" role="tab" id="tab-rails" aria-selected="false" aria-controls="p-rails">레일</button>
+  </div>
+
+  <!-- ===== 레일 ===== -->
+  <section class="panel" id="p-rails" role="tabpanel" aria-labelledby="tab-rails" hidden>
+    <div class="settings" role="group" aria-label="레일 설정">
+      <label for="players">참여 인원 <input type="number" id="players" value="24" min="2" max="60"></label>
+      <label for="maskNums"><input type="checkbox" id="maskNums"> 숫자 가리기</label>
+      <label for="showSum"><input type="checkbox" id="showSum" checked> 레일 합계 보이기</label>
+    </div>
+    <p class="err" id="railErr" aria-live="polite"></p>
+
+    <form class="entry" id="entry" autocomplete="off">
+      <label for="numIn" class="entry-l">숫자 입력</label>
+      <input type="number" id="numIn" inputmode="numeric" placeholder="숫자" aria-describedby="entryHint">
+      <div class="entry-btns">
+        <button type="submit" class="primary small-primary" id="autoBtn">자동 배정</button>
+        <button type="button" class="ghost" id="toA">A레일</button>
+        <button type="button" class="ghost" id="toB">B레일</button>
+      </div>
+      <p class="hint" id="entryHint">Enter나 자동 배정을 누르면 빈 칸이 있는 레일 중 하나에 무작위로 들어가요. 레일을 직접 고르려면 A레일·B레일 버튼을 누르세요.</p>
+    </form>
+
+    <div class="actions row">
+      <button type="button" class="ghost small" id="undoBtn" disabled>마지막 입력 취소</button>
+      <button type="button" class="ghost small" id="nextRound" disabled>다음 라운드</button>
+      <button type="button" class="ghost small danger" id="railReset">레일 비우기</button>
+    </div>
+
+    <div id="history"></div>
+  </section>
+
+  <!-- ===== 역할 배정 ===== -->
+  <section class="panel" id="p-roles" role="tabpanel" aria-labelledby="tab-roles">
+    <div class="settings" role="group" aria-label="역할 배정 설정">
+      <label for="students">반 인원 <input type="number" id="students" value="24" min="2" max="60"></label>
+      <label for="traitors">역적 수 <input type="number" id="traitors" value="4" min="1" max="59"></label>
+      <label for="withNums"><input type="checkbox" id="withNums"> 숫자 4개도 함께</label>
+    </div>
+    <div class="absent">
+      <div class="absent-h"><span>오늘 안 온 번호를 눌러 주세요</span><span class="count" id="presentCount"></span></div>
+      <div class="chips" id="chips" role="group" aria-label="결석 번호 선택"></div>
+    </div>
+    <p class="err" id="rErr" aria-live="polite"></p>
+
+    <div class="stage" id="stage" aria-live="polite"></div>
+
+    <div class="actions" id="rActions"></div>
+    <div class="count" id="rCount"></div>
+    <div id="resultBox"></div>
+  </section>
+
+  <!-- ===== 숫자 뽑기 ===== -->
+  <section class="panel" id="p-nums" role="tabpanel" aria-labelledby="tab-nums" hidden>
+    <div class="settings" role="group" aria-label="뽑기 설정">
+      <label for="min">최소 <input type="number" id="min" value="1" min="0" max="999"></label>
+      <label for="max">최대 <input type="number" id="max" value="10" min="1" max="999"></label>
+      <label for="nodup"><input type="checkbox" id="nodup" checked> 중복 없이</label>
+      <label for="sort"><input type="checkbox" id="sort"> 작은 순 정렬</label>
+    </div>
+    <p class="err" id="err" aria-live="polite"></p>
+    <div class="board" id="board" aria-live="polite"></div>
+    <div class="actions">
+      <button id="draw" class="primary" type="button">숫자 뽑기</button>
+      <button id="hide" class="ghost" type="button" disabled>가리고 다음 사람에게</button>
+      <div class="count" id="count">아직 뽑지 않았어요</div>
+    </div>
+  </section>
+
+  <section class="howto">
+    <b>교실에서 쓰는 법</b>
+    <ol>
+      <li><b>역할 배정</b>에서 반 인원과 역적 수를 정하고, 안 온 번호를 눌러 결석 표시한 뒤 <b>배정 시작</b>을 눌러요.</li>
+      <li>출석번호 순서대로 한 명씩 나와 <b>내 역할 보기</b>를 누르고, 확인하면 <b>가리고 다음 사람</b>을 눌러요.</li>
+      <li>모두 확인하면 선생님만 <b>전체 결과</b>를 열어 볼 수 있어요. 숫자 4개는 '숫자 4개도 함께'를 켜면 역할과 같이 나오고, 숫자 뽑기 탭의 범위 설정을 따라요.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+const COUNT=4;
+const $=id=>document.getElementById(id);
+function rand(n){if(window.crypto&&crypto.getRandomValues){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n;}return Math.floor(Math.random()*n);}
+
+/* ---------- tabs ---------- */
+const tabs=[['tab-roles','p-roles'],['tab-nums','p-nums'],['tab-rails','p-rails']];
+tabs.forEach(([t,p])=>$(t).addEventListener('click',()=>{
+  tabs.forEach(([t2,p2])=>{$(t2).setAttribute('aria-selected',t2===t);$(p2).hidden=p2!==p;});
+}));
+
+/* ---------- number draw ---------- */
+function pickNums(){
+  const lo=parseInt($('min').value,10),hi=parseInt($('max').value,10),nodup=$('nodup').checked;
+  if(isNaN(lo)||isNaN(hi)) throw '최소값과 최대값을 숫자로 입력해 주세요.';
+  if(hi<lo) throw '최대값이 최소값보다 커야 해요.';
+  const size=hi-lo+1;
+  if(nodup&&size<COUNT) throw `중복 없이 4개를 뽑으려면 범위에 숫자가 4개 이상 있어야 해요. (지금 ${size}개)`;
+  const out=[];
+  if(nodup){const pool=[];for(let v=lo;v<=hi;v++)pool.push(v);for(let i=0;i<COUNT;i++)out.push(pool.splice(rand(pool.length),1)[0]);}
+  else for(let i=0;i<COUNT;i++)out.push(lo+rand(size));
+  if($('sort').checked) out.sort((a,b)=>a-b);
+  return out;
+}
+let drawn=0;
+function blank(){$('board').innerHTML='';for(let i=0;i<COUNT;i++){const t=document.createElement('div');t.className='tile';t.innerHTML='<span class="q">?</span>';$('board').appendChild(t);}}
+$('draw').addEventListener('click',()=>{
+  let nums;try{nums=pickNums();$('err').textContent='';}catch(e){$('err').textContent=e;return;}
+  $('board').innerHTML='';
+  nums.forEach((v,i)=>{const t=document.createElement('div');t.className='tile on flip';t.style.animationDelay=(i*.12)+'s';t.innerHTML=`<span class="n">${v}</span>`;$('board').appendChild(t);});
+  drawn++;$('count').textContent=`${drawn}번째 뽑기`;$('hide').disabled=false;
+});
+$('hide').addEventListener('click',()=>{blank();$('hide').disabled=true;$('draw').focus();});
+blank();
+
+/* ---------- role assignment ---------- */
+let roles=null, idx=0, revealed=false, confirmReset=false;
+const stage=$('stage'), act=$('rActions');
+
+function btn(label,cls,fn,id){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;if(id)b.id=id;b.addEventListener('click',fn);return b;}
+
+const absent=new Set();
+function classSize(){const n=parseInt($('students').value,10);return isNaN(n)?0:Math.min(Math.max(n,0),60);}
+function presentList(){const out=[];for(let i=1;i<=classSize();i++)if(!absent.has(i))out.push(i);return out;}
+function renderChips(){
+  const n=classSize();
+  [...absent].forEach(x=>{if(x>n)absent.delete(x);});
+  const box=$('chips');box.innerHTML='';
+  for(let i=1;i<=n;i++){
+    const c=document.createElement('button');c.type='button';c.className='chip';c.id='chip-'+i;
+    c.textContent=i;c.setAttribute('aria-pressed',absent.has(i));c.setAttribute('aria-label',i+'번'+(absent.has(i)?' 결석':''));
+    c.disabled=!!roles;
+    c.addEventListener('click',()=>{absent.has(i)?absent.delete(i):absent.add(i);renderChips();if(!roles)renderSetup();syncPlayers();});
+    box.appendChild(c);
+  }
+  const p=presentList().length;
+  $('presentCount').textContent=`출석 ${p}명${absent.size?` · 결석 ${absent.size}명 (${[...absent].sort((a,b)=>a-b).join(', ')}번)`:''}`;
+}
+function syncPlayers(){ // rails follow present count until rails are in use
+  if(typeof total==='function'&&total()===0&&!history.length){$('players').value=presentList().length;if(setCaps())renderRails();}
+}
+
+function renderSetup(){
+  stage.className='stage';
+  stage.innerHTML=`<div class="who">역할을 나눌 준비가 됐어요</div>
+    <p class="hint">출석한 ${presentList().length}명 중 역적 ${$('traitors').value||'?'}명을 무작위로 정해요.${absent.size?'<br>결석한 번호는 순서에서 건너뛰어요.':''}</p>`;
+  act.innerHTML='';act.appendChild(btn('배정 시작','primary',start));
+  $('rCount').textContent='';$('resultBox').innerHTML='';
+}
+$('students').addEventListener('input',()=>{if(!roles){renderChips();renderSetup();syncPlayers();}});
+$('traitors').addEventListener('input',()=>{if(!roles)renderSetup();});
+
+function start(){
+  const present=presentList(),n=present.length,k=parseInt($('traitors').value,10),withNums=$('withNums').checked;
+  if(classSize()<2){$('rErr').textContent='반 인원은 2명 이상이어야 해요.';return;}
+  if(n<2){$('rErr').textContent='출석한 학생이 2명 이상이어야 해요.';return;}
+  if(isNaN(k)||k<1){$('rErr').textContent='역적은 1명 이상이어야 해요.';return;}
+  if(k>=n){$('rErr').textContent=`역적 수는 출석 인원(${n}명)보다 적어야 해요.`;return;}
+  if(withNums){try{pickNums();}catch(e){$('rErr').textContent='숫자 뽑기 탭 설정 확인: '+e;return;}}
+  $('rErr').textContent='';
+  const arr=present.map((no,i)=>({no,traitor:i<k}));
+  for(let i=n-1;i>0;i--){const j=rand(i+1);[arr[i].traitor,arr[j].traitor]=[arr[j].traitor,arr[i].traitor];}
+  arr.forEach(p=>{if(withNums)p.nums=pickNums();});
+  roles=arr;idx=0;revealed=false;confirmReset=false;
+  ['students','traitors','withNums'].forEach(id=>$(id).disabled=true);
+  renderChips();
+  renderTurn();
+}
+
+function progress(){return `<div class="progress" aria-hidden="true"><i style="width:${idx/roles.length*100}%"></i></div>`;}
+
+function renderTurn(){
+  $('resultBox').innerHTML='';
+  if(idx>=roles.length){renderDone();return;}
+  const p=roles[idx];
+  act.innerHTML='';
+  if(!revealed){
+    stage.className='stage';
+    stage.innerHTML=`<div class="who"><span class="no">${p.no}</span>번 차례</div>
+      <p class="hint">다른 친구들이 보지 않게 화면을 가리고 눌러요.</p>${progress()}`;
+    act.appendChild(btn('내 역할 보기','primary',()=>{revealed=true;renderTurn();},'revealBtn'));
+  }else{
+    stage.className='stage '+(p.traitor?'traitor':'loyal');
+    stage.innerHTML=`<div class="who"><span class="no">${p.no}</span>번</div>
+      <div class="role flip ${p.traitor?'traitor':'loyal'}">${p.traitor?'역적':'충신'}</div>
+      ${p.nums?`<div class="mini">${p.nums.map(v=>`<span>${v}</span>`).join('')}</div>`:''}
+      <p class="hint">${p.traitor?'아무에게도 들키지 마세요.':'역적을 찾아내세요.'}</p>`;
+    act.appendChild(btn(idx+1<roles.length?'가리고 다음 사람':'가리고 끝내기','ghost',()=>{revealed=false;idx++;renderTurn();},'nextBtn'));
+  }
+  $('rCount').textContent=`${idx+1} / ${roles.length}명`;
+  appendReset();
+  const f=act.querySelector('button');if(f)f.focus({preventScroll:true});
+}
+
+function renderDone(){
+  stage.className='stage';
+  stage.innerHTML=`<div class="who">모두 확인했어요</div><p class="hint">게임을 시작하세요. 결과는 선생님만 확인해 주세요.</p>${progress()}`;
+  act.innerHTML='';
+  act.appendChild(btn('전체 결과 보기 (선생님용)','ghost',toggleResult,'resBtn'));
+  $('rCount').textContent=`${roles.length} / ${roles.length}명`;
+  appendReset();
+}
+
+function toggleResult(){
+  const box=$('resultBox');
+  if(box.innerHTML){box.innerHTML='';$('resBtn').textContent='전체 결과 보기 (선생님용)';return;}
+  const tr=roles.filter(p=>p.traitor).map(p=>p.no+'번').join(', ');
+  box.innerHTML=`<div class="result"><h3>역적: ${tr}</h3><ul>${roles.map(p=>
+    `<li class="${p.traitor?'t':''}"><span>${p.no}번</span>${p.nums?`<span class="ns">${p.nums.join(' · ')}</span>`:''}<span class="r">${p.traitor?'역적':'충신'}</span></li>`).join('')}</ul></div>`;
+  $('resBtn').textContent='결과 가리기';
+}
+
+function appendReset(){
+  const b=btn(confirmReset?'정말 처음부터? 한 번 더 누르세요':'처음부터 다시 배정','ghost small danger',()=>{
+    if(!confirmReset){confirmReset=true;b.textContent='정말 처음부터? 한 번 더 누르세요';setTimeout(()=>{confirmReset=false;if(b.isConnected)b.textContent='처음부터 다시 배정';},4000);return;}
+    roles=null;confirmReset=false;['students','traitors','withNums'].forEach(id=>$(id).disabled=false);renderChips();renderSetup();
+  },'resetBtn');
+  act.appendChild(b);
+}
+renderSetup();
+
+/* ---------- rails ---------- */
+// even N → N/2 each; odd N → A gets one more (ceil), B gets floor
+let rail={A:[],B:[]}, cap={A:12,B:12}, round=1, log=[], history=[], lastNew=null;
+
+function setCaps(){
+  const n=parseInt($('players').value,10);
+  if(isNaN(n)||n<2){$('railErr').textContent='참여 인원은 2명 이상이어야 해요.';return false;}
+  $('railErr').textContent='';
+  cap={A:Math.ceil(n/2),B:Math.floor(n/2)};
+  return true;
+}
+function total(){return rail.A.length+rail.B.length;}
+function full(){return rail.A.length>=cap.A&&rail.B.length>=cap.B;}
+function sum(k){return rail[k].reduce((a,b)=>a+b,0);}
+
+function renderRails(){
+  const mask=$('maskNums').checked, showSum=$('showSum').checked && !mask;
+  $('rails').innerHTML=['A','B'].map(k=>{
+    const slots=[];
+    for(let i=0;i<cap[k];i++){
+      const v=rail[k][i], filled=v!==undefined, isNew=lastNew&&lastNew.k===k&&lastNew.i===i;
+      slots.push(`<div class="slot${filled?' filled':''}${isNew?' new':''}"><small>${i+1}</small>${filled?(mask?'●':v):''}</div>`);
+    }
+    const isFull=rail[k].length>=cap[k];
+    return `<div class="rail r${k.toLowerCase()}${isFull?' full':''}">
+      <div class="rail-h"><span class="rail-name ${k.toLowerCase()}">${k}레일</span>
+        <span class="rail-meta">${rail[k].length} / ${cap[k]}칸${showSum?` · 합계 <b>${sum(k)}</b>`:''}${isFull?' · 가득 참':''}</span></div>
+      <div class="track">${slots.join('')}</div></div>`;
+  }).join('');
+  const n=cap.A+cap.B;
+  $('railCount').textContent=`${total()} / ${n}명 입력`;
+  $('roundNo').textContent=`${round}라운드`;
+  $('undoBtn').disabled=log.length===0;
+  $('nextRound').disabled=!full();
+  $('players').disabled=total()>0;
+  const isFull=full();
+  ['numIn','autoBtn'].forEach(id=>$(id).disabled=isFull);
+  $('toA').disabled=rail.A.length>=cap.A;
+  $('toB').disabled=rail.B.length>=cap.B;
+  const old=document.getElementById('doneMsg'); if(old) old.remove();
+  if(isFull){
+    const d=document.createElement('div');d.className='done';d.id='doneMsg';
+    d.innerHTML=`<b>${round}라운드 끝!</b>${showSum?`<div class="hint">A레일 합계 ${sum('A')} · B레일 합계 ${sum('B')}</div>`:''}`;
+    $('rails').after(d);
+  }
+  renderHistory();
+}
+
+function place(which){
+  const raw=$('numIn').value.trim();
+  if(raw===''){$('railErr').textContent='숫자를 먼저 입력해 주세요.';$('numIn').focus();return;}
+  const v=Number(raw);
+  if(!Number.isFinite(v)){$('railErr').textContent='숫자만 입력할 수 있어요.';return;}
+  let k=which;
+  if(!k){
+    const open=['A','B'].filter(x=>rail[x].length<cap[x]);
+    if(!open.length) return;
+    k=open[rand(open.length)];
+  }
+  if(rail[k].length>=cap[k]){$('railErr').textContent=`${k}레일은 가득 찼어요. 다른 레일에 넣어 주세요.`;return;}
+  $('railErr').textContent='';
+  rail[k].push(v); log.push(k); lastNew={k,i:rail[k].length-1};
+  $('numIn').value='';
+  renderRails();
+  if(!full()) $('numIn').focus({preventScroll:true});
+}
+
+$('entry').addEventListener('submit',e=>{e.preventDefault();place(null);});
+$('toA').addEventListener('click',()=>place('A'));
+$('toB').addEventListener('click',()=>place('B'));
+$('undoBtn').addEventListener('click',()=>{const k=log.pop();if(k){rail[k].pop();lastNew=null;renderRails();}});
+$('players').addEventListener('input',()=>{if(total()===0&&setCaps())renderRails();});
+$('maskNums').addEventListener('change',()=>{lastNew=null;renderRails();});
+$('showSum').addEventListener('change',()=>{lastNew=null;renderRails();});
+$('nextRound').addEventListener('click',()=>{
+  history.unshift({round,A:[...rail.A],B:[...rail.B]});
+  rail={A:[],B:[]};log=[];lastNew=null;round++;renderRails();$('numIn').focus();
+});
+let railConfirm=false;
+$('railReset').addEventListener('click',()=>{
+  const b=$('railReset');
+  if(!railConfirm){railConfirm=true;b.textContent='정말 비울까요? 한 번 더 누르세요';
+    setTimeout(()=>{railConfirm=false;b.textContent='레일 비우기';},4000);return;}
+  railConfirm=false;b.textContent='레일 비우기';
+  rail={A:[],B:[]};log=[];lastNew=null;round=1;history=[];setCaps();renderRails();
+});
+function renderHistory(){
+  if(!history.length){$('history').innerHTML='';return;}
+  const mask=$('maskNums').checked;
+  $('history').innerHTML=`<div class="hist"><h3>지난 라운드</h3>${history.map(h=>
+    `<div class="hist-row"><span class="hr">${h.round}R</span><span class="hl">A ${mask?'('+h.A.length+'칸)':h.A.join(', ')+' = '+h.A.reduce((a,b)=>a+b,0)}<br>B ${mask?'('+h.B.length+'칸)':h.B.join(', ')+' = '+h.B.reduce((a,b)=>a+b,0)}</span></div>`).join('')}</div>`;
+}
+// remember rails across refresh (this browser only)
+const RKEY='loyal-traitor-rails-v1';
+function saveRails(){try{localStorage.setItem(RKEY,JSON.stringify({rail,round,log,history,players:$('players').value}));}catch(e){}}
+function loadRails(){try{const d=JSON.parse(localStorage.getItem(RKEY)||'null');if(!d||!d.rail)return false;
+  rail=d.rail;round=d.round||1;log=d.log||[];history=d.history||[];if(d.players)$('players').value=d.players;return true;}catch(e){return false;}}
+const _render=renderRails;renderRails=function(){_render();saveRails();};
+const restored=loadRails();
+renderChips();
+setCaps();renderRails();
+if(!restored) syncPlayers();
+</script>
+
+</body>
+</html>
